@@ -26,6 +26,7 @@
 #include "ExpirationTimer.h"
 #include "MessageBox.h"
 #include "CustomGeometry.h"
+#include "Vector2.h"
 
 
 namespace Urho3D
@@ -43,6 +44,14 @@ enum GameSate
 	GS_GAMEPLAY,
 	GS_GAMEOVER,
 	GS_QUIT
+};
+
+enum MoveDirection
+{
+	MD_LEFT,
+	MD_RIGHT,
+	MD_UP,
+	MD_DOWN
 };
 
 // All Urho3D classes reside in namespace Urho3D
@@ -91,11 +100,9 @@ private:
 	/// 
 	void CreateGrid();
     /// Construct an instruction text to the UI.
-    void CreateInstructions();
+    void CreateUI();
     /// Set up a viewport for displaying the scene.
     void SetupViewport();
-    /// Read input and moves the camera.
-    void MoveCamera(float timeStep);
     /// Subscribe to application-wide logic update events.
     void SubscribeToEvents();
     /// Handle the logic update event.
@@ -106,6 +113,18 @@ private:
 	void StartGame();
 	/// Exit Game 
 	void Quit();
+	/// 
+	void AddSegment();
+	///
+	void MoveSnake();
+	/// 
+	void RandomizeFruitPosition();
+	/// 
+	bool CheckOverlap(float x, float y);
+	/// 
+	void UpdateGameplay(float timeStep);
+
+
     /// Scene.
     SharedPtr<Scene> scene_;
     /// Camera scene node.
@@ -122,14 +141,19 @@ private:
 	SharedPtr<Node> gridNode_;
 	SharedPtr<CustomGeometry> grid_;
 
-	bool showGrid = true;
-	bool grid2DMode = false;
-	int gridSize = 16;
-	int gridSubdivisions = 3;
-	float gridScale = 2.0f;
-	Color gridColor = Color(0.1f, 0.1f, 0.1f);
-	Color gridSubdivisionColor = Color(0.05f, 0.05f, 0.05f);
-	Color gridXColor = Color(0.1f, 0.1f, 0.1f);
-	Color gridYColor = Color(0.1f, 0.1f, 0.1f);
-	Color gridZColor = Color(0.1f, 0.1f, 0.1f);
+	IntVector2 gridSize = IntVector2(32,32);
+	int gridTileSize = 16;
+
+	Color gridBorderColor = Color(0.31f, 0.31f, 0.31f);
+	Color gridColor = Color(0.15f, 0.15f, 0.15f);
+
+
+	SharedPtr<Text> scoreText_;
+	SharedPtr<Node> snakeHead_;
+	SharedPtr<Node> fruit_;
+	Vector<SharedPtr<Node>> snakeBody_;
+	
+	int score_ = 0;
+	MoveDirection headDirection = MD_LEFT;
+	ExpirationTimer moveTimer_;
 };

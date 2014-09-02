@@ -66,7 +66,8 @@ SimpleSnake::SimpleSnake(Context* context) :
 Application(context),
 gameState_(GS_MAINMENU),
 flashText_(300),
-pause_(false)
+pause_(false),
+moveTimer_(183)
 {
 }
 void SimpleSnake::Setup()
@@ -76,6 +77,7 @@ void SimpleSnake::Setup()
 	engineParameters_["LogName"] = GetTypeName() + ".log";
 	engineParameters_["FullScreen"] = false;
 	engineParameters_["Headless"] = false;
+	engineParameters_["ResourcePaths"] = "CoreData;Data;GameData";
 }
 
 void SimpleSnake::Start()
@@ -102,7 +104,7 @@ void SimpleSnake::Start()
 	CreateGrid();
 
 	// Create the UI content
-	CreateInstructions();
+	CreateUI();
 
 	// Setup the viewport for displaying the scene
 	SetupViewport();
@@ -195,31 +197,44 @@ void SimpleSnake::CreateScene()
 	Graphics* graphics = GetSubsystem<Graphics>();
 	camera->SetOrthoSize((float)graphics->GetHeight() * PIXEL_SIZE);
 	// Get sprite
-	Sprite2D* sprite = cache->GetResource<Sprite2D>("Urho2D/Aster.png");
+	Sprite2D* sprite = cache->GetResource<Sprite2D>("SnakeHead.png");
 	if (!sprite)
 		return;
+	sprite->SetHotSpot(Vector2(0.0f , 0.0f));
 
-	float halfWidth = graphics->GetWidth() * 0.5f * PIXEL_SIZE;
-	float halfHeight = graphics->GetHeight() * 0.5f * PIXEL_SIZE;
+	// Start by creating the head of the snake
+	snakeHead_ = scene_->CreateChild("StaticSprite2D");
+	snakeHead_->SetPosition(Vector3(-2.0f * gridTileSize * PIXEL_SIZE, 1.0f*gridTileSize * PIXEL_SIZE, 0.0f));
+	snakeHead_->SetScale(0.8f);
+	StaticSprite2D* snakeHeadStaticSprite = snakeHead_->CreateComponent<StaticSprite2D>();
+	snakeHeadStaticSprite->SetBlendMode(BLEND_ALPHA);
+	snakeHeadStaticSprite->SetSprite(sprite);
+	headDirection = MD_LEFT;
 
-	for (unsigned i = 0; i < 24; ++i)
+	// Add 3 body segments to start off
+	for (int i = 0; i < 3; ++i)
 	{
-		SharedPtr<Node> spriteNode(scene_->CreateChild("StaticSprite2D"));
-		spriteNode->SetPosition(Vector3(Random(-halfWidth, halfWidth), Random(-halfHeight, halfHeight), 0.0f));
-
-		StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
-		// Set random color
-		staticSprite->SetColor(Color(Random(1.0f), Random(1.0f), Random(1.0f), 1.0f));
-		// Set blend mode
-		staticSprite->SetBlendMode(BLEND_ALPHA);
-		// Set sprite
-		staticSprite->SetSprite(sprite);
+		AddSegment();
+		// Move the snake to attach the segment to the head
+		MoveSnake();
 	}
 
+	// Something to eat. We only ever need one fruit, we can just reposition it.
+	Sprite2D* fruitsprite = cache->GetResource<Sprite2D>("Fruit.png");
+	if (!fruitsprite)
+		return;
+	fruitsprite->SetHotSpot(Vector2(0.0f, 0.0f));
+
+	fruit_ = scene_->CreateChild("StaticSprite2D");
+	fruit_->SetScale(0.8f);
+	StaticSprite2D* fruitSprite = fruit_->CreateComponent<StaticSprite2D>();
+	fruitSprite->SetBlendMode(BLEND_ALPHA);
+	fruitSprite->SetSprite(fruitsprite);
+	RandomizeFruitPosition();
 
 }
 
-void SimpleSnake::CreateInstructions()
+void SimpleSnake::CreateUI()
 {
 	ResourceCache* cache = GetSubsystem<ResourceCache>();
 	UI* ui = GetSubsystem<UI>();
@@ -249,6 +264,14 @@ void SimpleSnake::CreateInstructions()
 	startText_->SetHorizontalAlignment(HA_CENTER);
 	startText_->SetVerticalAlignment(VA_CENTER);
 	startText_->SetPosition(0, ui->GetRoot()->GetHeight() / 4);
+
+
+	scoreText_ = ui->GetRoot()->CreateChild<Text>();
+	scoreText_->SetText("Score: 0");
+	scoreText_->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 21);
+	scoreText_->SetPosition(30, 60);
+	scoreText_->SetTextEffect(TE_STROKE);
+	scoreText_->SetVisible(false);
 }
 
 void SimpleSnake::SetupViewport()
@@ -260,32 +283,6 @@ void SimpleSnake::SetupViewport()
 	// use, but now we just use full screen and default render path configured in the engine command line options
 	SharedPtr<Viewport> viewport(new Viewport(context_, scene_, cameraNode_->GetComponent<Camera>()));
 	renderer->SetViewport(0, viewport);
-}
-
-void SimpleSnake::MoveCamera(float timeStep)
-{
-	// Do not move if the UI has a focused element (the console)
-	if (GetSubsystem<UI>()->GetFocusElement())
-		return;
-
-	Input* input = GetSubsystem<Input>();
-
-	// Movement speed as world units per second
-	const float MOVE_SPEED = 20.0f;
-	// Mouse sensitivity as degrees per pixel
-	const float MOUSE_SENSITIVITY = 0.1f;
-
-	// Read WASD keys and move the camera scene node to the corresponding direction if they are pressed
-	// Use the TranslateRelative() function to move relative to the node's orientation. Alternatively we could
-	// multiply the desired direction with the node's orientation quaternion, and use just Translate()
-	if (input->GetKeyDown('W'))
-		cameraNode_->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
-	if (input->GetKeyDown('S'))
-		cameraNode_->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
-	if (input->GetKeyDown('A'))
-		cameraNode_->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
-	if (input->GetKeyDown('D'))
-		cameraNode_->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
 }
 
 void SimpleSnake::SubscribeToEvents()
@@ -318,6 +315,9 @@ void SimpleSnake::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	}
 		break;
 	case GS_GAMEPLAY:
+	{
+						UpdateGameplay(timeStep);
+	}		
 		break;
 	case GS_GAMEOVER:
 		break;
@@ -428,6 +428,10 @@ void SimpleSnake::HandleKeyDown(StringHash eventType, VariantMap& eventData)
 				Time::GetTimeStamp().Replaced(':', '_').Replaced('.', '_').Replaced(' ', '_') + ".png");
 		}
 	}
+
+	/// 
+	if(gameState_ == GS_MAINMENU)
+		StartGame();
 }
 
 void SimpleSnake::SplashScreen()
@@ -458,7 +462,6 @@ void SimpleSnake::HandleSplash(StringHash eventType, VariantMap& eventData)
 
 void SimpleSnake::Quit()
 {
-
 	GetSubsystem<UI>()->GetCursor()->SetVisible(true);
 
 	messageBox_ = new Urho3D::MessageBox(context_, "Do you really want to exit the Game ?", "Quit Game ?");
@@ -481,7 +484,6 @@ void SimpleSnake::HandleQuitMessageAck(StringHash eventType, VariantMap& eventDa
 	using namespace MessageACK;
 
 	bool ok_ = eventData[P_OK].GetBool();
-	
 
 	GetSubsystem<UI>()->GetCursor()->SetVisible(false);
 
@@ -492,7 +494,6 @@ void SimpleSnake::HandleQuitMessageAck(StringHash eventType, VariantMap& eventDa
 	{
 		engine_->Exit();
 	}
-	
 }
 
 void SimpleSnake::StartGame()
@@ -500,51 +501,193 @@ void SimpleSnake::StartGame()
 	gameState_ = GS_GAMEPLAY;
 	startText_->SetVisible(false);
 	titleText_->SetVisible(false);
-
-
+	scoreText_->SetVisible(true);
 }
 
 void SimpleSnake::CreateGrid()
 {
 	ResourceCache* cache = GetSubsystem<ResourceCache>();
 	gridNode_ = scene_->CreateChild("Grid");
-	gridNode_->SetScale ( Vector3(gridScale, gridScale, gridScale));
 	grid_ = gridNode_->CreateComponent<CustomGeometry>();
-	grid_->SetNumGeometries( 1);
+	grid_->SetNumGeometries(1);
 	grid_->SetMaterial(cache->GetResource<Material>("Materials/VColUnlit.xml"));
-
-	
-	int size = int(floor(gridSize / 2) * 2);
-	float halfSizeScaled = size / 2;
-	float scale = 1.0;
-	int subdivisionSize = int(pow(2.0f, float(gridSubdivisions)));
-	if (subdivisionSize > 0)
-	{
-		size *= subdivisionSize;
-		scale /= subdivisionSize;
-	}
-
-	int halfSize = size / 2;
+	float Size = gridTileSize*PIXEL_SIZE;
+	float halfSizeX = floor(gridSize.x_ / 2)*Size;
+	float halfSizeY = floor(gridSize.y_ / 2)*Size;
 
 	grid_->BeginGeometry(0, LINE_LIST);
 
-	float lineOffset = -halfSizeScaled;
-	for (int i = 0; i <= size; ++i)
+	for (int i = 0; i <= gridSize.x_; ++i)
 	{
-		bool lineCenter = i == halfSize;
-		bool lineSubdiv = !Equals((i% subdivisionSize), 0.0);
-
-		{
-			grid_->DefineVertex(Vector3(lineOffset, halfSizeScaled, 0.0));
-			grid_->DefineColor(lineCenter ? gridYColor : (lineSubdiv ? gridSubdivisionColor : gridColor));
-			grid_->DefineVertex(Vector3(lineOffset, -halfSizeScaled, 0.0));
-			grid_->DefineColor(lineCenter ? gridYColor : (lineSubdiv ? gridSubdivisionColor : gridColor));
-			grid_->DefineVertex(Vector3(-halfSizeScaled, lineOffset, 0.0));
-			grid_->DefineColor(lineCenter ? gridXColor : (lineSubdiv ? gridSubdivisionColor : gridColor));
-			grid_->DefineVertex(Vector3(halfSizeScaled, lineOffset, 0.0));
-			grid_->DefineColor(lineCenter ? gridXColor : (lineSubdiv ? gridSubdivisionColor : gridColor));
-		}
-		lineOffset += scale;
+		grid_->DefineVertex(Vector3(-halfSizeX + i*Size, halfSizeY, 0.0f));
+		grid_->DefineColor(i == 0 || i == gridSize.x_ ? gridBorderColor : gridColor);
+		grid_->DefineVertex(Vector3(-halfSizeX + i*Size, -halfSizeY, 0.0f));
+		grid_->DefineColor(i == 0 || i == gridSize.x_ ? gridBorderColor : gridColor);
 	}
+
+	for (int i = 0; i <= gridSize.y_; ++i)
+	{
+		grid_->DefineVertex(Vector3(-halfSizeX, halfSizeY - i*Size, 0.0f));
+		grid_->DefineColor(i == 0 || i == gridSize.y_ ? gridBorderColor : gridColor);
+		grid_->DefineVertex(Vector3(halfSizeX, halfSizeY - i*Size, 0.0f));
+		grid_->DefineColor(i == 0 || i == gridSize.y_ ? gridBorderColor : gridColor);
+	}
+
 	grid_->Commit();
+}
+
+void SimpleSnake::AddSegment()
+{
+	if (snakeBody_.Empty())
+	{
+		ResourceCache* cache = GetSubsystem<ResourceCache>();
+		Sprite2D* sprite = cache->GetResource<Sprite2D>("SnakeBody.png");
+		if (!sprite)
+			return;
+		sprite->SetHotSpot(Vector2(0.0f, 0.0f));
+		
+		SharedPtr<Node> spriteNode(scene_->CreateChild("StaticSprite2D"));
+		spriteNode->SetPosition(snakeHead_->GetPosition());
+		spriteNode->SetScale(0.8f);
+		StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
+		staticSprite->SetBlendMode(BLEND_ALPHA);
+		staticSprite->SetSprite(sprite);
+
+		snakeBody_.Push(spriteNode);
+		return;
+	}
+
+	Node* last = snakeBody_.Back();
+	ResourceCache* cache = GetSubsystem<ResourceCache>();
+	Sprite2D* sprite = cache->GetResource<Sprite2D>("SnakeBody.png");
+	if (!sprite)
+		return;
+	sprite->SetHotSpot(Vector2(0.0f, 0.0f));
+
+	SharedPtr<Node> spriteNode(scene_->CreateChild("StaticSprite2D"));
+	spriteNode->SetPosition(last->GetPosition());
+	spriteNode->SetScale(0.8f);
+	StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
+	staticSprite->SetBlendMode(BLEND_ALPHA);
+	staticSprite->SetSprite(sprite);
+	snakeBody_.Push(spriteNode);
+}
+
+void SimpleSnake::MoveSnake()
+{
+	// Update the position of the head
+	Vector2 headPos = snakeHead_->GetPosition2D();
+	float Size = gridTileSize*PIXEL_SIZE;
+	float halfSizeX = floor(gridSize.x_ / 2)*Size;
+	float halfSizeY = floor(gridSize.y_ / 2)*Size;
+
+// 	if ((halfSizeX == headPos.x_ + Size) || (-halfSizeX == headPos.x_))
+// 	{
+// 		return;
+// 	}
+// 
+// 	if ((halfSizeY == headPos.y_ + Size) || (-halfSizeY == headPos.y_))
+// 	{
+// 		return;
+// 	}
+
+	switch (headDirection)
+	{
+	case MD_LEFT:
+		if (headPos.x_ == -halfSizeX)
+		{
+			snakeHead_->SetPosition2D(halfSizeX - Size, headPos.y_);
+		} else
+			snakeHead_->SetPosition2D(headPos.x_ - gridTileSize * PIXEL_SIZE, headPos.y_);
+		break;
+	case MD_RIGHT:
+		if (headPos.x_ == halfSizeX - Size)
+		{
+			snakeHead_->SetPosition2D(-halfSizeX, headPos.y_);
+		} else
+			snakeHead_->SetPosition2D(headPos.x_ + gridTileSize * PIXEL_SIZE, headPos.y_);
+		break;
+	case MD_UP:
+		if (headPos.y_ == halfSizeY - Size)
+		{
+			snakeHead_->SetPosition2D(headPos.x_, -halfSizeY);
+		} else
+			snakeHead_->SetPosition2D(headPos.x_, headPos.y_ + gridTileSize * PIXEL_SIZE);
+		break;
+	case MD_DOWN:
+		if (headPos.y_ ==  -halfSizeY)
+		{
+			snakeHead_->SetPosition2D(headPos.x_, halfSizeY - Size);
+		} else
+			snakeHead_->SetPosition2D(headPos.x_, headPos.y_ - gridTileSize * PIXEL_SIZE);
+		break;
+	default:
+		break;
+	}
+
+	// Update the position of the body
+	for (int i = 0; i < snakeBody_.Size(); i++)
+	{
+		Node* bodySegment = snakeBody_[i];
+		Vector2 temp = bodySegment->GetPosition2D();
+		bodySegment->SetPosition2D(headPos);
+		headPos = temp;
+	}
+}
+
+void SimpleSnake::RandomizeFruitPosition()
+{
+	int halfWidth = (gridSize.x_ / 2);
+	int halfHeight = (gridSize.y_ / 2);
+
+	// Pick a random place to put the fruit down
+	float x = Random(-halfWidth, halfWidth)* gridTileSize * PIXEL_SIZE;
+	float y = Random(-halfHeight, halfHeight)* gridTileSize * PIXEL_SIZE;
+
+	fruit_->SetPosition2D(x, y);
+
+	// Check that the coordinates we picked aren't already covering the snake, if they are then run this function again
+	if (CheckOverlap(x,y))
+	{
+		RandomizeFruitPosition();
+	}
+}
+
+bool SimpleSnake::CheckOverlap(float x, float y)
+{
+	Vector2 temp(x, y);
+	if (snakeHead_->GetPosition2D() == temp)
+	{
+		return true;
+	}
+	for (int i = 0; i < snakeBody_.Size();i++)
+	{
+		if (snakeBody_[i]->GetPosition2D() == temp)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void SimpleSnake::UpdateGameplay(float timeStep)
+{
+	Input* input = GetSubsystem<Input>();
+
+	if ((input->GetKeyPress('W') || input->GetKeyPress(KEY_UP)) && headDirection != MD_DOWN)
+		headDirection = MD_UP;
+	if ((input->GetKeyPress('S') || input->GetKeyPress(KEY_DOWN)) && headDirection != MD_UP)
+		headDirection = MD_DOWN;
+	if ((input->GetKeyPress('A') || input->GetKeyPress(KEY_LEFT)) && headDirection != MD_RIGHT)
+		headDirection = MD_LEFT;
+	if ((input->GetKeyPress('D') || input->GetKeyPress(KEY_RIGHT)) && headDirection != MD_LEFT)
+		headDirection = MD_RIGHT;
+
+	if (moveTimer_.Expired())
+	{
+		MoveSnake();
+		moveTimer_.Reset();
+	}
+
+
 }

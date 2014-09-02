@@ -24,6 +24,7 @@ public:
 	bool Active();
 	bool Expired();
 	unsigned GetCurrentTime();
+	void SetExpirationTime(unsigned expirationTime);
 private:
 	Timer timer_;
 	unsigned expirationTime_;

@@ -28,6 +28,13 @@ void ExpirationTimer::Reset()
 	timer_.Reset();
 }
 
+void ExpirationTimer::SetExpirationTime(unsigned expirationTime)
+{
+	expirationTime_ = expirationTime;
+	timer_.Reset();
+}
+
+
 unsigned ExpirationTimer::GetCurrentTime()
 {
 	return timer_.GetMSec(false);
