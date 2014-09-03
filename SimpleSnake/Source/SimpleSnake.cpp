@@ -66,7 +66,7 @@ SimpleSnake::SimpleSnake(Context* context) :
 Application(context),
 gameState_(GS_MAINMENU),
 flashText_(300),
-pause_(false),
+snakeAlive_(true),
 moveTimer_(183)
 {
 }
@@ -113,11 +113,13 @@ void SimpleSnake::Start()
 	SubscribeToEvents();
 	flashText_.Reset();
 }
+
 void SimpleSnake::SetLogoVisible(bool enable)
 {
 	if (logoSprite_)
 		logoSprite_->SetVisible(enable);
 }
+
 void SimpleSnake::CreateLogo()
 {
 	// Get logo texture
@@ -183,54 +185,55 @@ void SimpleSnake::CreateScene()
 {
 	ResourceCache* cache = GetSubsystem<ResourceCache>();
 
+	// Setup the scene 
 	scene_ = new Scene(context_);
 	scene_->CreateComponent<Octree>();
 
-	// Create camera node
+	// Setup the 2d game camera 
 	cameraNode_ = scene_->CreateChild("Camera");
-	// Set camera's position
 	cameraNode_->SetPosition(Vector3(0.0f, 0.0f, -10.0f));
-
 	Camera* camera = cameraNode_->CreateComponent<Camera>();
 	camera->SetOrthographic(true);
-
 	Graphics* graphics = GetSubsystem<Graphics>();
 	camera->SetOrthoSize((float)graphics->GetHeight() * PIXEL_SIZE);
-	// Get sprite
+
+	// create the root game node 
+	gameNode_ = scene_->CreateChild("GameNode");
+
+	// Load snake head sprite and create snake head node
 	Sprite2D* sprite = cache->GetResource<Sprite2D>("SnakeHead.png");
 	if (!sprite)
 		return;
 	sprite->SetHotSpot(Vector2(0.0f , 0.0f));
-
-	// Start by creating the head of the snake
-	snakeHead_ = scene_->CreateChild("StaticSprite2D");
+	/// Start by creating the head of the snake
+	snakeHead_ = gameNode_->CreateChild("SnakeHead");
 	snakeHead_->SetPosition(Vector3(-2.0f * gridTileSize * PIXEL_SIZE, 1.0f*gridTileSize * PIXEL_SIZE, 0.0f));
 	snakeHead_->SetScale(0.8f);
 	StaticSprite2D* snakeHeadStaticSprite = snakeHead_->CreateComponent<StaticSprite2D>();
 	snakeHeadStaticSprite->SetBlendMode(BLEND_ALPHA);
 	snakeHeadStaticSprite->SetSprite(sprite);
 	headDirection = MD_LEFT;
-
-	// Add 3 body segments to start off
+	/// Add 3 body segments to the snake head 
 	for (int i = 0; i < 3; ++i)
 	{
 		AddSegment();
-		// Move the snake to attach the segment to the head
+		/// Move the snake to attach the segment to the head
 		MoveSnake();
 	}
 
-	// Something to eat. We only ever need one fruit, we can just reposition it.
+	// Load the fruit sprite and position it
 	Sprite2D* fruitsprite = cache->GetResource<Sprite2D>("Fruit.png");
 	if (!fruitsprite)
 		return;
 	fruitsprite->SetHotSpot(Vector2(0.0f, 0.0f));
-
-	fruit_ = scene_->CreateChild("StaticSprite2D");
+	fruit_ = gameNode_->CreateChild("Fruit");
 	fruit_->SetScale(0.8f);
 	StaticSprite2D* fruitSprite = fruit_->CreateComponent<StaticSprite2D>();
 	fruitSprite->SetBlendMode(BLEND_ALPHA);
 	fruitSprite->SetSprite(fruitsprite);
 	RandomizeFruitPosition();
+
+
 
 }
 
@@ -257,7 +260,7 @@ void SimpleSnake::CreateUI()
 
 	// Construct new Text object, set string to display and font to use
 	startText_ = ui->GetRoot()->CreateChild<Text>();
-	startText_->SetText("Click to Start Game");
+	startText_->SetText("Press Space to Start Game");
 	startText_->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 15);
 
 	// Position the text relative to the screen center
@@ -297,29 +300,47 @@ void SimpleSnake::HandleUpdate(StringHash eventType, VariantMap& eventData)
 
 	// Take the frame time step, which is stored as a float
 	float timeStep = eventData[P_TIMESTEP].GetFloat();
-
+	Input* input = GetSubsystem<Input>();
 	switch (gameState_)
 	{
 	case GS_MAINMENU:
 	{
-						if (flashText_.Expired() && startText_->IsVisible())
+						FlashStartText();
+						if (input->GetKeyPress(KEY_SPACE))
+							StartGame();
+						if (input->GetKeyPress(KEY_ESC))
 						{
-							startText_->SetVisible(false);
-							flashText_.Reset();
-						}
-						else if (flashText_.Expired() && !startText_->IsVisible())
-						{
-							startText_->SetVisible(true);
-							flashText_.Reset();
+							Quit();
 						}
 	}
 		break;
 	case GS_GAMEPLAY:
 	{
 						UpdateGameplay(timeStep);
+						if (input->GetKeyPress(KEY_ESC))
+						{
+							gameState_ = GS_MAINMENU;
+							startText_->SetVisible(true);
+							startText_->SetText("Press Space to Start Game");
+							titleText_->SetVisible(true);
+							scoreText_->SetVisible(false);
+						}
 	}		
 		break;
 	case GS_GAMEOVER:
+	{
+						FlashStartText();
+						if (input->GetKeyPress(KEY_SPACE))
+							StartGame();
+						if (input->GetKeyPress(KEY_ESC))
+						{
+							gameState_ = GS_MAINMENU;
+							startText_->SetVisible(true);
+							startText_->SetText("Press Space to Start Game");
+							titleText_->SetVisible(true);
+							scoreText_->SetVisible(false);
+						}
+	}
 		break;
 	case GS_QUIT:
 		break;
@@ -340,8 +361,8 @@ void SimpleSnake::HandleKeyDown(StringHash eventType, VariantMap& eventData)
 		Console* console = GetSubsystem<Console>();
 		if (console->IsVisible())
 			console->SetVisible(false);
-		else
-			Quit();
+// 		else
+// 			Quit();
 	}
 
 	// Toggle console with F1
@@ -429,9 +450,7 @@ void SimpleSnake::HandleKeyDown(StringHash eventType, VariantMap& eventData)
 		}
 	}
 
-	/// 
-	if(gameState_ == GS_MAINMENU)
-		StartGame();
+
 }
 
 void SimpleSnake::SplashScreen()
@@ -465,6 +484,7 @@ void SimpleSnake::Quit()
 	GetSubsystem<UI>()->GetCursor()->SetVisible(true);
 
 	messageBox_ = new Urho3D::MessageBox(context_, "Do you really want to exit the Game ?", "Quit Game ?");
+	
 	if (messageBox_->GetWindow() != NULL)
 	{
 		Button* cancelButton = (Button*)messageBox_->GetWindow()->GetChild("CancelButton", true);
@@ -475,7 +495,7 @@ void SimpleSnake::Quit()
 
 	if (scene_.NotNull())
 		scene_->SetUpdateEnabled(false);
-
+	
 	gameState_ = GS_QUIT;
 }
 
@@ -490,6 +510,7 @@ void SimpleSnake::HandleQuitMessageAck(StringHash eventType, VariantMap& eventDa
 	if (scene_.NotNull())
 		scene_->SetUpdateEnabled(true);
 	gameState_ = GS_MAINMENU;
+	
 	if (ok_)
 	{
 		engine_->Exit();
@@ -502,6 +523,27 @@ void SimpleSnake::StartGame()
 	startText_->SetVisible(false);
 	titleText_->SetVisible(false);
 	scoreText_->SetVisible(true);
+
+	// reset the snake
+	snakeHead_->SetPosition(Vector3(-2.0f * gridTileSize * PIXEL_SIZE, 1.0f*gridTileSize * PIXEL_SIZE, 0.0f));
+	headDirection = MD_LEFT;
+	/// reset snake body
+	for (int i = 0; i < snakeBody_.Size(); i++)
+	{
+		snakeBody_[i]->RemoveAllComponents();
+		scene_->RemoveChild(snakeBody_[i]);			
+	}
+	snakeBody_.Clear();
+	/// Add 3 body segments to the snake head 
+	for (int i = 0; i < 3; ++i)
+	{
+		AddSegment();
+		/// Move the snake to attach the segment to the head
+		MoveSnake();
+	}
+
+	// reset Fruit position
+	RandomizeFruitPosition();
 }
 
 void SimpleSnake::CreateGrid()
@@ -538,6 +580,7 @@ void SimpleSnake::CreateGrid()
 
 void SimpleSnake::AddSegment()
 {
+	// Create the first snake body 
 	if (snakeBody_.Empty())
 	{
 		ResourceCache* cache = GetSubsystem<ResourceCache>();
@@ -546,25 +589,23 @@ void SimpleSnake::AddSegment()
 			return;
 		sprite->SetHotSpot(Vector2(0.0f, 0.0f));
 		
-		SharedPtr<Node> spriteNode(scene_->CreateChild("StaticSprite2D"));
+		SharedPtr<Node> spriteNode(gameNode_->CreateChild("SnakeBody"));
 		spriteNode->SetPosition(snakeHead_->GetPosition());
 		spriteNode->SetScale(0.8f);
 		StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
 		staticSprite->SetBlendMode(BLEND_ALPHA);
 		staticSprite->SetSprite(sprite);
-
 		snakeBody_.Push(spriteNode);
 		return;
 	}
-
+	// add a snake body 
 	Node* last = snakeBody_.Back();
 	ResourceCache* cache = GetSubsystem<ResourceCache>();
 	Sprite2D* sprite = cache->GetResource<Sprite2D>("SnakeBody.png");
 	if (!sprite)
 		return;
 	sprite->SetHotSpot(Vector2(0.0f, 0.0f));
-
-	SharedPtr<Node> spriteNode(scene_->CreateChild("StaticSprite2D"));
+	SharedPtr<Node> spriteNode(gameNode_->CreateChild("SnakeBody"));
 	spriteNode->SetPosition(last->GetPosition());
 	spriteNode->SetScale(0.8f);
 	StaticSprite2D* staticSprite = spriteNode->CreateComponent<StaticSprite2D>();
@@ -580,16 +621,6 @@ void SimpleSnake::MoveSnake()
 	float Size = gridTileSize*PIXEL_SIZE;
 	float halfSizeX = floor(gridSize.x_ / 2)*Size;
 	float halfSizeY = floor(gridSize.y_ / 2)*Size;
-
-// 	if ((halfSizeX == headPos.x_ + Size) || (-halfSizeX == headPos.x_))
-// 	{
-// 		return;
-// 	}
-// 
-// 	if ((halfSizeY == headPos.y_ + Size) || (-halfSizeY == headPos.y_))
-// 	{
-// 		return;
-// 	}
 
 	switch (headDirection)
 	{
@@ -690,4 +721,26 @@ void SimpleSnake::UpdateGameplay(float timeStep)
 	}
 
 
+}
+
+void SimpleSnake::GameOver()
+{
+	snakeAlive_ = false;
+	startText_->SetVisible(true);
+	startText_->SetText("Game Over - Space to restart!");
+	
+}
+
+void SimpleSnake::FlashStartText()
+{
+	if (flashText_.Expired() && startText_->IsVisible())
+	{
+		startText_->SetVisible(false);
+		flashText_.Reset();
+	}
+	else if (flashText_.Expired() && !startText_->IsVisible())
+	{
+		startText_->SetVisible(true);
+		flashText_.Reset();
+	}
 }

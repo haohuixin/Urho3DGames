@@ -123,37 +123,44 @@ private:
 	bool CheckOverlap(float x, float y);
 	/// 
 	void UpdateGameplay(float timeStep);
+	/// 
+	void GameOver();
+	/// 
+	void FlashStartText();
 
-
-    /// Scene.
+    // Scene
     SharedPtr<Scene> scene_;
-    /// Camera scene node.
     SharedPtr<Node> cameraNode_;
+	SharedPtr<Node> gameNode_;
 
-	SharedPtr<Text> titleText_;
-
-	SharedPtr<Text> startText_;
-
-	GameSate gameState_;
-	ExpirationTimer flashText_;
+	// Quit Message Box 
 	SharedPtr<Urho3D::MessageBox> messageBox_;
-	bool pause_;
+	
+	// Background Grid 
 	SharedPtr<Node> gridNode_;
 	SharedPtr<CustomGeometry> grid_;
-
 	IntVector2 gridSize = IntVector2(32,32);
 	int gridTileSize = 16;
-
 	Color gridBorderColor = Color(0.31f, 0.31f, 0.31f);
 	Color gridColor = Color(0.15f, 0.15f, 0.15f);
 
-
-	SharedPtr<Text> scoreText_;
+	// snake 
 	SharedPtr<Node> snakeHead_;
 	SharedPtr<Node> fruit_;
 	Vector<SharedPtr<Node>> snakeBody_;
-	
-	int score_ = 0;
 	MoveDirection headDirection = MD_LEFT;
 	ExpirationTimer moveTimer_;
+	
+	// Player Attributes
+	int score_ = 0;
+	bool snakeAlive_;
+
+	// HUD 
+	SharedPtr<Text> scoreText_;
+	SharedPtr<Text> titleText_;
+	SharedPtr<Text> startText_;
+	ExpirationTimer flashText_;
+
+	// Game State
+	GameSate gameState_;
 };
