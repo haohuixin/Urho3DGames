@@ -481,20 +481,21 @@ void SimpleSnake::Quit()
 {
 	GetSubsystem<UI>()->GetCursor()->SetVisible(true);
 
-	messageBox_ = new Urho3D::MessageBox(context_, "Do you really want to exit the Game ?", "Quit Game ?");
+	SharedPtr<Urho3D::MessageBox> messageBox ( new Urho3D::MessageBox(context_, "Do you really want to exit the Game ?", "Quit Game ?"));
 	
-	if (messageBox_->GetWindow() != NULL)
+	if (messageBox->GetWindow() != NULL)
 	{
-		Button* cancelButton = (Button*)messageBox_->GetWindow()->GetChild("CancelButton", true);
+		Button* cancelButton = (Button*)messageBox->GetWindow()->GetChild("CancelButton", true);
 		cancelButton->SetVisible(true);
 		cancelButton->SetFocus(true);
-		SubscribeToEvent(messageBox_, E_MESSAGEACK, HANDLER(SimpleSnake, HandleQuitMessageAck));
+		SubscribeToEvent(messageBox, E_MESSAGEACK, HANDLER(SimpleSnake, HandleQuitMessageAck));
 	}
 
 	if (scene_.NotNull())
 		scene_->SetUpdateEnabled(false);
 	
 	gameState_ = GS_QUIT;
+	messageBox->AddRef();
 }
 
 void SimpleSnake::HandleQuitMessageAck(StringHash eventType, VariantMap& eventData)
