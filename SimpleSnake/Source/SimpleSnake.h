@@ -91,43 +91,54 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// splash screen
 	void SplashScreen();
+	/// 
 	void HandleSplash(StringHash eventType, VariantMap& eventData);
 
 	//////////////////////////////////////////////////////////////////////////
-	// create sample
-    /// Construct the scene content.
+	// Setup scene
+	/// Set up a viewport for displaying the scene.
+	void SetupViewport();
+	/// Subscribe to application-wide logic update events.
+	void SubscribeToEvents();
+
+	// Create game scene 
     void CreateScene();
-	/// 
+	/// Create the background grid
 	void CreateGrid();
-    /// Construct an instruction text to the UI.
+    /// Create all HUD elements.
     void CreateUI();
-    /// Set up a viewport for displaying the scene.
-    void SetupViewport();
-    /// Subscribe to application-wide logic update events.
-    void SubscribeToEvents();
-    /// Handle the logic update event.
-    void HandleUpdate(StringHash eventType, VariantMap& eventData);
-	/// Handle the quit message 
-	void HandleQuitMessageAck(StringHash eventType, VariantMap& eventData);
-	/// Start Gameplay
-	void StartGame();
-	/// Exit Game 
-	void Quit();
 	/// 
 	void AddSegment();
-	///
-	void MoveSnake();
 	/// 
 	void RandomizeFruitPosition();
 	/// 
 	bool CheckOverlap(float x, float y);
 	/// 
-	void UpdateGameplay(float timeStep);
+	void FlashStartText();
+	/// 
+	void CollectFruit();
+
+	// Start game state functions
+	/// Start Gameplay
+	void StartGame();
+	/// Exit Game 
+	void Quit();
 	/// 
 	void GameOver();
-	/// 
-	void FlashStartText();
 
+	// Handle scene events
+    /// Handle the logic update event.
+    void HandleUpdate(StringHash eventType, VariantMap& eventData);
+	/// Handle the quit message 
+	void HandleQuitMessageAck(StringHash eventType, VariantMap& eventData);
+	/// 
+	void UpdateGameplay(float timeStep);
+	///
+	void MoveSnake();
+	///
+	bool ApproximatelyEqual(Vector2 a, Vector2 b, float epsilon);
+
+	//////////////////////////////////////////////////////////////////////////
     // Scene
     SharedPtr<Scene> scene_;
     SharedPtr<Node> cameraNode_;

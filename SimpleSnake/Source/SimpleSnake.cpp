@@ -59,7 +59,7 @@
 #include "Button.h"
 #include "Drawable2D.h"
 #include "StaticSprite2D.h"
-
+#define EPSILON    (1.0E-6)
 DEFINE_APPLICATION_MAIN(SimpleSnake)
 
 SimpleSnake::SimpleSnake(Context* context) :
@@ -308,10 +308,8 @@ void SimpleSnake::HandleUpdate(StringHash eventType, VariantMap& eventData)
 						FlashStartText();
 						if (input->GetKeyPress(KEY_SPACE))
 							StartGame();
-						if (input->GetKeyPress(KEY_ESC))
-						{
-							Quit();
-						}
+						if (input->GetKeyPress(KEY_ESC))						
+							Quit();					
 	}
 		break;
 	case GS_GAMEPLAY:
@@ -507,14 +505,11 @@ void SimpleSnake::HandleQuitMessageAck(StringHash eventType, VariantMap& eventDa
 
 	GetSubsystem<UI>()->GetCursor()->SetVisible(false);
 
+	gameState_ = GS_MAINMENU;
 	if (scene_.NotNull())
 		scene_->SetUpdateEnabled(true);
-	gameState_ = GS_MAINMENU;
-	
 	if (ok_)
-	{
-		engine_->Exit();
-	}
+		engine_->Exit();	
 }
 
 void SimpleSnake::StartGame()
@@ -544,6 +539,10 @@ void SimpleSnake::StartGame()
 
 	// reset Fruit position
 	RandomizeFruitPosition();
+
+	// score 
+	score_ = 0;
+	scoreText_->SetText("Score:  0");
 }
 
 void SimpleSnake::CreateGrid()
@@ -672,8 +671,8 @@ void SimpleSnake::RandomizeFruitPosition()
 	int halfHeight = (gridSize.y_ / 2);
 
 	// Pick a random place to put the fruit down
-	float x = Random(-halfWidth, halfWidth)* gridTileSize * PIXEL_SIZE;
-	float y = Random(-halfHeight, halfHeight)* gridTileSize * PIXEL_SIZE;
+	float x = Random(-halfWidth, halfWidth) * gridTileSize * PIXEL_SIZE;
+	float y = Random(-halfHeight, halfHeight) * gridTileSize * PIXEL_SIZE;
 
 	fruit_->SetPosition2D(x, y);
 
@@ -705,6 +704,7 @@ void SimpleSnake::UpdateGameplay(float timeStep)
 {
 	Input* input = GetSubsystem<Input>();
 
+	// Movement 
 	if ((input->GetKeyPress('W') || input->GetKeyPress(KEY_UP)) && headDirection != MD_DOWN)
 		headDirection = MD_UP;
 	if ((input->GetKeyPress('S') || input->GetKeyPress(KEY_DOWN)) && headDirection != MD_UP)
@@ -720,7 +720,25 @@ void SimpleSnake::UpdateGameplay(float timeStep)
 		moveTimer_.Reset();
 	}
 
+	// Did the snake eat the fruit?
+	if (ApproximatelyEqual(snakeHead_->GetPosition2D(), fruit_->GetPosition2D(), EPSILON))
+	{
+		CollectFruit();
+	}
 
+	// Did the snake eat herself ? 
+	bool gameover = false;
+	for (int i = 0; i < snakeBody_.Size(); i++)
+	{
+		if (snakeBody_[i]->GetPosition2D() == snakeHead_->GetPosition2D())
+		{
+			gameover = true;
+		}
+	}
+	if (gameover)
+	{
+		GameOver();
+	}
 }
 
 void SimpleSnake::GameOver()
@@ -728,7 +746,7 @@ void SimpleSnake::GameOver()
 	snakeAlive_ = false;
 	startText_->SetVisible(true);
 	startText_->SetText("Game Over - Space to restart!");
-	
+	gameState_ = GS_GAMEOVER;
 }
 
 void SimpleSnake::FlashStartText()
@@ -743,4 +761,28 @@ void SimpleSnake::FlashStartText()
 		startText_->SetVisible(true);
 		flashText_.Reset();
 	}
+}
+
+void SimpleSnake::CollectFruit()
+{
+
+	score_ += 10;
+	String str("Score: ");
+	str.AppendWithFormat("%i", score_);
+	scoreText_->SetText(str);
+
+	RandomizeFruitPosition();
+
+	AddSegment();
+	if (moveTimer_.GetExpirationTime() > 70)
+	{
+		moveTimer_.SetExpirationTime(moveTimer_.GetExpirationTime() - 10);
+	}
+	
+}
+
+bool SimpleSnake::ApproximatelyEqual(Vector2 a, Vector2 b, float epsilon)
+{
+	bool temp = fabs(a.x_ - b.x_) <= ((fabs(a.x_) < fabs(b.x_) ? fabs(b.x_) : fabs(a.x_)) * epsilon);
+	return temp && fabs(a.y_ - b.y_) <= ((fabs(a.y_) < fabs(b.y_) ? fabs(b.y_) : fabs(a.y_)) * epsilon);
 }

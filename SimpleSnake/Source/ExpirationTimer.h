@@ -25,6 +25,7 @@ public:
 	bool Expired();
 	unsigned GetCurrentTime();
 	void SetExpirationTime(unsigned expirationTime);
+	unsigned GetExpirationTime() const { return expirationTime_; }
 private:
 	Timer timer_;
 	unsigned expirationTime_;
