@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.0" orientation="orthogonal" width="30" height="30" tilewidth="16" tileheight="16">
  <tileset firstgid="1" name="SimpleTD" tilewidth="16" tileheight="16">
-  <image source="../Textures/SimpleTD.png" width="128" height="128"/>
+  <image source="SimpleTD.png" width="128" height="128"/>
  </tileset>
  <layer name="Terrain" width="30" height="30">
   <data>
