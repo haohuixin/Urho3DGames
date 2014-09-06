@@ -106,6 +106,8 @@ private:
 	Vector<Vector2> path_;
 	ExpirationTimer moveTimer_;
 	int onPathIndex_;
+
+	int wave_;
 protected:
 	//-------------------------------------------------------------------------
 	// Protected Variables

@@ -6,7 +6,9 @@ Simple Snake :
 
 Simple Tower Defense :
 		Features :  	ExpirationTimer
-				Application State Manager.
+				Application State Manager
+				Pathfinding : http://www.redblobgames.com/pathfinding/a-star/implementation.html
+
 
 
 

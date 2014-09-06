@@ -59,13 +59,15 @@
 #include "Pathfinding.h"
 #include "StaticSprite2D.h"
 #include "SpriteSheet2D.h"
+#include "Enemy.h"
 
 
 GameState::GameState(Context* context) : State(context),
 moveTimer_(250),
-onPathIndex_(0)
+onPathIndex_(0),
+wave_(1)
 {
-
+	Enemy::RegisterObject(context);
 }
 
 GameState::~GameState()
@@ -209,7 +211,7 @@ void GameState::CreateScene()
 		{
 			Vector2 pos(std::get<0>(path.at(i)), std::get<1>(path.at(i)));
 
-			path_.Push(pos);
+			path_.Push(info.TileIndexToPosition(pos.x_, pos.y_));
 		}
 		
 
@@ -225,9 +227,9 @@ void GameState::CreateScene()
 		staticSprite->SetSprite(spriteSheet->GetSprite("Enemy"));
 		staticSprite->SetLayer(5*10);
 
-
-		
-
+		Enemy* e = enemySpriteNode_->CreateComponent<Enemy>();
+		e->FollowPath(&path_);
+		e->SetSpeed(4.0f);
 		
 	}
 
@@ -314,17 +316,17 @@ void GameState::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	if (input->GetKeyPress(KEY_ESC))
 		stateManager_->PopStack();
 
-	if (moveTimer_.Expired())
-	{
-		if (onPathIndex_ >= path_.Size())
-		{
-			onPathIndex_ = 0;
-		}
-		const TileMapInfo2D& info = tileMap_->GetInfo();
-		enemySpriteNode_->SetPosition2D(info.TileIndexToPosition(path_.At(onPathIndex_).x_, path_.At(onPathIndex_).y_));
-		onPathIndex_++;
-		moveTimer_.Reset();
-	}
+// 	if (moveTimer_.Expired())
+// 	{
+// 		if (onPathIndex_ >= path_.Size())
+// 		{
+// 			onPathIndex_ = 0;
+// 		}
+// 		const TileMapInfo2D& info = tileMap_->GetInfo();
+// 		enemySpriteNode_->SetPosition2D(info.TileIndexToPosition(path_.At(onPathIndex_).x_, path_.At(onPathIndex_).y_));
+// 		onPathIndex_++;
+// 		moveTimer_.Reset();
+// 	}
 }
 
 void GameState::End()
