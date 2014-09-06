@@ -32,6 +32,9 @@
 #include "Node.h"
 #include "Scene.h"
 #include "Text.h"
+#include "Vector.h"
+#include "ExpirationTimer.h"
+#include "TileMap2D.h"
 
 
 
@@ -92,17 +95,17 @@ private:
 
 	
 
-	/// Scene.
+
 	SharedPtr<Scene> scene_;
-	/// Camera scene node.
 	SharedPtr<Node> cameraNode_;
-
 	SharedPtr<Text> instructionText;
-	/// Camera yaw angle.
-	float yaw_;
-	/// Camera pitch angle.
-	float pitch_;
 
+	SharedPtr<TileMap2D> tileMap_;
+	SharedPtr<Node> enemySpriteNode_;
+
+	Vector<Vector2> path_;
+	ExpirationTimer moveTimer_;
+	int onPathIndex_;
 protected:
 	//-------------------------------------------------------------------------
 	// Protected Variables

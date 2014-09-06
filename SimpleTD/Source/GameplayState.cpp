@@ -57,11 +57,13 @@
 #include "TileMap2D.h"
 #include "Drawable2D.h"
 #include "Pathfinding.h"
+#include "StaticSprite2D.h"
+#include "SpriteSheet2D.h"
 
 
 GameState::GameState(Context* context) : State(context),
-yaw_(0.0f),
-pitch_(0.0f)
+moveTimer_(250),
+onPathIndex_(0)
 {
 
 }
@@ -121,12 +123,12 @@ void GameState::CreateScene()
 	SharedPtr<Node> tileMapNode(scene_->CreateChild("TileMap"));
 	tileMapNode->SetPosition(Vector3(0.0f, 0.0f, -1.0f));
 
-	TileMap2D* tileMap = tileMapNode->CreateComponent<TileMap2D>();
+	tileMap_ = tileMapNode->CreateComponent<TileMap2D>();
 	// Set animation
-	tileMap->SetTmxFile(tmxFile);
+	tileMap_->SetTmxFile(tmxFile);
 
 	// Set camera's position
-	const TileMapInfo2D& info = tileMap->GetInfo();
+	const TileMapInfo2D& info = tileMap_->GetInfo();
 	float x = info.GetMapWidth() * 0.5f;
 	float y = info.GetMapHeight() * 0.5f;
 	cameraNode_->SetPosition(Vector3(x, y, -10.0f));
@@ -167,7 +169,8 @@ void GameState::CreateScene()
 			}
 		}		SquareGrid::Location startPoint;
 		SquareGrid::Location goalPoint;
-
+		TileMapObject2D* objGoal = NULL;
+		TileMapObject2D* objSpawn = NULL;
 		for (int i = 0; i < eventsLayer->GetNumObjects(); ++i) 
 		{
 			TileMapObject2D* obj = eventsLayer->GetObject(i);
@@ -180,6 +183,8 @@ void GameState::CreateScene()
 				gridPos.y_ = pixelPos.y_ / (info.tileHeight_ / PIXEL_SIZE);
 				gridPos.x_ = pixelPos.x_ / (info.tileWidth_ / PIXEL_SIZE);
 				goalPoint = SquareGrid::Location{ gridPos.x_, gridPos.y_ };
+				objGoal = obj;
+
 			}
 			else if (obj->GetName() == "SpawnPoint")
 			{
@@ -190,6 +195,7 @@ void GameState::CreateScene()
 				gridPos.y_ = pixelPos.y_ / (info.tileHeight_ / PIXEL_SIZE);
 				gridPos.x_ = pixelPos.x_ / (info.tileWidth_ / PIXEL_SIZE);
 				startPoint = SquareGrid::Location{ gridPos.x_, gridPos.y_ };
+				objSpawn = obj;
 			}
 		}
 
@@ -197,9 +203,32 @@ void GameState::CreateScene()
 		auto parents = breadth_first_search(grid, startPoint, goalPoint);
 
 		vector<SquareGrid::Location> path = reconstruct_path(startPoint, goalPoint, parents);
-		Vector2 pos(std::get<0>(startPoint), std::get<1>(startPoint));
+		
+		//maptext->SetText(draw_grid_to_String(grid, 2, nullptr, nullptr, &path).c_str());
+		for (int i = path.size() - 1; i >= 0; i--)
+		{
+			Vector2 pos(std::get<0>(path.at(i)), std::get<1>(path.at(i)));
 
-		maptext->SetText(draw_grid_to_String(grid, 2, nullptr, nullptr, &path).c_str());
+			path_.Push(pos);
+		}
+		
+
+
+		// create enemy sprite 
+		SpriteSheet2D* 	spriteSheet = cache->GetResource<SpriteSheet2D>("Tilemaps/TileMapSprites.xml");
+		if (!spriteSheet)
+			return;
+		enemySpriteNode_ = scene_->CreateChild("Enemy");
+		enemySpriteNode_->SetPosition2D(objSpawn->GetPosition() );
+		StaticSprite2D* staticSprite = enemySpriteNode_->CreateComponent<StaticSprite2D>();
+		spriteSheet->GetSprite("Enemy")->SetHotSpot(Vector2(0.0f, 0.0f));
+		staticSprite->SetSprite(spriteSheet->GetSprite("Enemy"));
+		staticSprite->SetLayer(5*10);
+
+
+		
+
+		
 	}
 
 }
@@ -284,6 +313,18 @@ void GameState::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	Input* input = GetSubsystem<Input>();
 	if (input->GetKeyPress(KEY_ESC))
 		stateManager_->PopStack();
+
+	if (moveTimer_.Expired())
+	{
+		if (onPathIndex_ >= path_.Size())
+		{
+			onPathIndex_ = 0;
+		}
+		const TileMapInfo2D& info = tileMap_->GetInfo();
+		enemySpriteNode_->SetPosition2D(info.TileIndexToPosition(path_.At(onPathIndex_).x_, path_.At(onPathIndex_).y_));
+		onPathIndex_++;
+		moveTimer_.Reset();
+	}
 }
 
 void GameState::End()
