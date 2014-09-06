@@ -63,8 +63,6 @@
 
 
 GameState::GameState(Context* context) : State(context),
-moveTimer_(250),
-onPathIndex_(0),
 wave_(1)
 {
 	Enemy::RegisterObject(context);
@@ -89,17 +87,14 @@ bool GameState::Begin()
 	// Hook up to the frame update events
 	SubscribeToEvents();
 
-
-
 	return State::Begin();
 }
 
 bool GameState::Initialize()
 {
-
-
 	return State::Initialize();
 }
+
 void GameState::CreateScene()
 {
 	scene_ = new Scene(context_);
@@ -135,7 +130,6 @@ void GameState::CreateScene()
 	float y = info.GetMapHeight() * 0.5f;
 	cameraNode_->SetPosition(Vector3(x, y, -10.0f));
 
-
 	// find Terrain layer  and find the Events Object Layer to get spawn points and goals 
 	const TmxTileLayer2D* terrainlayer = NULL;
 	const TmxObjectGroup2D* eventsLayer = NULL;
@@ -154,25 +148,16 @@ void GameState::CreateScene()
 	if (terrainlayer && eventsLayer)
 	{
 		ResourceCache* cache = GetSubsystem<ResourceCache>();
-		UI* ui = GetSubsystem<UI>();
-
-		// Construct new Text object, set string to display and font to use
-		Text* maptext = ui->GetRoot()->CreateChild<Text>();
-		maptext->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 15);
-		maptext->SetHorizontalAlignment(HA_CENTER);
-		maptext->SetVerticalAlignment(VA_CENTER);
-
+		
+		// create Tile Grid from the Terrain layer. every existing tile is walkable, so set only wall tiles, which are not defined tiles.
 		SquareGrid grid(terrainlayer->GetWidth(), terrainlayer->GetHeight());
-
 		for (int x = 0; x < terrainlayer->GetWidth(); ++x) {
 			for (int y = 0; y < terrainlayer->GetHeight(); ++y) {
 				if (!terrainlayer->GetTile(x, y))
 					grid.walls.insert(SquareGrid::Location{ x, y });
 			}
-		}		SquareGrid::Location startPoint;
+		}		// retrieve Start and end points from events object layer		SquareGrid::Location startPoint;
 		SquareGrid::Location goalPoint;
-		TileMapObject2D* objGoal = NULL;
-		TileMapObject2D* objSpawn = NULL;
 		for (int i = 0; i < eventsLayer->GetNumObjects(); ++i) 
 		{
 			TileMapObject2D* obj = eventsLayer->GetObject(i);
@@ -185,8 +170,6 @@ void GameState::CreateScene()
 				gridPos.y_ = pixelPos.y_ / (info.tileHeight_ / PIXEL_SIZE);
 				gridPos.x_ = pixelPos.x_ / (info.tileWidth_ / PIXEL_SIZE);
 				goalPoint = SquareGrid::Location{ gridPos.x_, gridPos.y_ };
-				objGoal = obj;
-
 			}
 			else if (obj->GetName() == "SpawnPoint")
 			{
@@ -197,16 +180,23 @@ void GameState::CreateScene()
 				gridPos.y_ = pixelPos.y_ / (info.tileHeight_ / PIXEL_SIZE);
 				gridPos.x_ = pixelPos.x_ / (info.tileWidth_ / PIXEL_SIZE);
 				startPoint = SquareGrid::Location{ gridPos.x_, gridPos.y_ };
-				objSpawn = obj;
 			}
 		}
 
-	
+		// create path for the enemy to walk on. 
 		auto parents = breadth_first_search(grid, startPoint, goalPoint);
-
 		vector<SquareGrid::Location> path = reconstruct_path(startPoint, goalPoint, parents);
-		
-		//maptext->SetText(draw_grid_to_String(grid, 2, nullptr, nullptr, &path).c_str());
+
+		// Construct debug text 
+//		UI* ui = GetSubsystem<UI>();
+// 		Text* maptext = ui->GetRoot()->CreateChild<Text>();
+// 		maptext->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 15);
+// 		maptext->SetHorizontalAlignment(HA_CENTER);
+// 		maptext->SetVerticalAlignment(VA_CENTER);
+//		maptext->SetText(draw_grid_to_String(grid, 2, nullptr, nullptr, &path).c_str());
+
+		// create usable path for the enemy component.
+		path_.Clear();
 		for (int i = path.size() - 1; i >= 0; i--)
 		{
 			Vector2 pos(std::get<0>(path.at(i)), std::get<1>(path.at(i)));
@@ -214,25 +204,20 @@ void GameState::CreateScene()
 			path_.Push(info.TileIndexToPosition(pos.x_, pos.y_));
 		}
 		
-
-
-		// create enemy sprite 
+		// create enemy 
 		SpriteSheet2D* 	spriteSheet = cache->GetResource<SpriteSheet2D>("Tilemaps/TileMapSprites.xml");
 		if (!spriteSheet)
 			return;
-		enemySpriteNode_ = scene_->CreateChild("Enemy");
-		enemySpriteNode_->SetPosition2D(objSpawn->GetPosition() );
+		Node* enemySpriteNode_ = scene_->CreateChild("Enemy");
 		StaticSprite2D* staticSprite = enemySpriteNode_->CreateComponent<StaticSprite2D>();
 		spriteSheet->GetSprite("Enemy")->SetHotSpot(Vector2(0.0f, 0.0f));
 		staticSprite->SetSprite(spriteSheet->GetSprite("Enemy"));
 		staticSprite->SetLayer(5*10);
-
+		/// create Enemy component which controls the Enemy behavior
 		Enemy* e = enemySpriteNode_->CreateComponent<Enemy>();
 		e->FollowPath(&path_);
-		e->SetSpeed(4.0f);
-		
+		e->SetSpeed(4.0f);		
 	}
-
 }
 
 void GameState::CreateInstructions()
@@ -241,14 +226,14 @@ void GameState::CreateInstructions()
 	UI* ui = GetSubsystem<UI>();
 
 	// Construct new Text object, set string to display and font to use
-	instructionText = ui->GetRoot()->CreateChild<Text>();
-	instructionText->SetText("Use WASD keys to move, use PageUp PageDown keys to zoom.");
-	instructionText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 15);
-
-	// Position the text relative to the screen center
-	instructionText->SetHorizontalAlignment(HA_CENTER);
-	instructionText->SetVerticalAlignment(VA_CENTER);
-	instructionText->SetPosition(0, ui->GetRoot()->GetHeight() / 4);
+// 	instructionText = ui->GetRoot()->CreateChild<Text>();
+// 	instructionText->SetText("Use WASD keys to move, use PageUp PageDown keys to zoom.");
+// 	instructionText->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 15);
+// 
+// 	// Position the text relative to the screen center
+// 	instructionText->SetHorizontalAlignment(HA_CENTER);
+// 	instructionText->SetVerticalAlignment(VA_CENTER);
+// 	instructionText->SetPosition(0, ui->GetRoot()->GetHeight() / 4);
 }
 
 void GameState::SetupViewport()
@@ -315,29 +300,16 @@ void GameState::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	Input* input = GetSubsystem<Input>();
 	if (input->GetKeyPress(KEY_ESC))
 		stateManager_->PopStack();
-
-// 	if (moveTimer_.Expired())
-// 	{
-// 		if (onPathIndex_ >= path_.Size())
-// 		{
-// 			onPathIndex_ = 0;
-// 		}
-// 		const TileMapInfo2D& info = tileMap_->GetInfo();
-// 		enemySpriteNode_->SetPosition2D(info.TileIndexToPosition(path_.At(onPathIndex_).x_, path_.At(onPathIndex_).y_));
-// 		onPathIndex_++;
-// 		moveTimer_.Reset();
-// 	}
 }
 
 void GameState::End()
 {
 	 scene_.Reset();	
 	 cameraNode_.Reset();
-	 if (GetSubsystem<UI>())
-		 GetSubsystem<UI>()->GetRoot()->RemoveChild(instructionText);
-	 instructionText.Reset();
+// 	 if (GetSubsystem<UI>())
+// 		 GetSubsystem<UI>()->GetRoot()->RemoveChild(instructionText);
 	 UnsubscribeFromEvent(E_UPDATE);
-
+	 path_.Clear();
 	State::End();
 }
 

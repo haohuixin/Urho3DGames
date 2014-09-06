@@ -94,20 +94,16 @@ private:
 	void HandleUpdate(StringHash eventType, VariantMap& eventData);
 
 	
-
-
 	SharedPtr<Scene> scene_;
 	SharedPtr<Node> cameraNode_;
-	SharedPtr<Text> instructionText;
 
 	SharedPtr<TileMap2D> tileMap_;
-	SharedPtr<Node> enemySpriteNode_;
 
 	Vector<Vector2> path_;
-	ExpirationTimer moveTimer_;
-	int onPathIndex_;
 
 	int wave_;
+
+
 protected:
 	//-------------------------------------------------------------------------
 	// Protected Variables

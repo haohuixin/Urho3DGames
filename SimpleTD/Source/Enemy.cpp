@@ -106,8 +106,6 @@ void Enemy::Explode(bool gainMoney)
 	}
 	
 	node_->Remove();
-	node_->RemoveAllComponents();
-
 }
 
 void Enemy::FollowPath(Vector<Vector2> *path)
