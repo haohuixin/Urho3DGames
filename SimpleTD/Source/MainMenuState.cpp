@@ -98,6 +98,9 @@ bool MenuState::Begin()
 	// Subscribe key down event
 	SubscribeToEvent(E_KEYDOWN, HANDLER(MenuState, HandleKeyDown));
 
+
+
+
 	// Call base class implementation
 	return State::Begin();;
 }

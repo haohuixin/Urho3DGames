@@ -56,6 +56,7 @@
 #include "TmxFile2D.h"
 #include "TileMap2D.h"
 #include "Drawable2D.h"
+#include "Pathfinding.h"
 
 
 GameState::GameState(Context* context) : State(context),
@@ -83,6 +84,8 @@ bool GameState::Begin()
 
 	// Hook up to the frame update events
 	SubscribeToEvents();
+
+
 
 	return State::Begin();
 }
@@ -128,6 +131,76 @@ void GameState::CreateScene()
 	float y = info.GetMapHeight() * 0.5f;
 	cameraNode_->SetPosition(Vector3(x, y, -10.0f));
 
+
+	// find Terrain layer  and find the Events Object Layer to get spawn points and goals 
+	const TmxTileLayer2D* terrainlayer = NULL;
+	const TmxObjectGroup2D* eventsLayer = NULL;
+	for (int i = 0; i < tmxFile->GetNumLayers(); i++)
+	{
+		if (tmxFile->GetLayer(i)->GetName() == "Terrain")
+		{
+			terrainlayer = static_cast<const TmxTileLayer2D* > (tmxFile->GetLayer(i));
+		}
+		else if (tmxFile->GetLayer(i)->GetName() == "Events")
+		{
+			eventsLayer = static_cast<const TmxObjectGroup2D* > (tmxFile->GetLayer(i));
+		}
+	}
+	
+	if (terrainlayer && eventsLayer)
+	{
+		ResourceCache* cache = GetSubsystem<ResourceCache>();
+		UI* ui = GetSubsystem<UI>();
+
+		// Construct new Text object, set string to display and font to use
+		Text* maptext = ui->GetRoot()->CreateChild<Text>();
+		maptext->SetFont(cache->GetResource<Font>("Fonts/Anonymous Pro.ttf"), 15);
+		maptext->SetHorizontalAlignment(HA_CENTER);
+		maptext->SetVerticalAlignment(VA_CENTER);
+
+		SquareGrid grid(terrainlayer->GetWidth(), terrainlayer->GetHeight());
+
+		for (int x = 0; x < terrainlayer->GetWidth(); ++x) {
+			for (int y = 0; y < terrainlayer->GetHeight(); ++y) {
+				if (!terrainlayer->GetTile(x, y))
+					grid.walls.insert(SquareGrid::Location{ x, y });
+			}
+		}		SquareGrid::Location startPoint;
+		SquareGrid::Location goalPoint;
+
+		for (int i = 0; i < eventsLayer->GetNumObjects(); ++i) 
+		{
+			TileMapObject2D* obj = eventsLayer->GetObject(i);
+			if (obj->GetName() == "Goal")
+			{
+				Vector2 pixelPos = obj->GetPosition();
+				pixelPos.y_ = (info.GetMapHeight() - pixelPos.y_) - obj->GetSize().y_;
+				pixelPos /= PIXEL_SIZE;
+				Vector2 gridPos;
+				gridPos.y_ = pixelPos.y_ / (info.tileHeight_ / PIXEL_SIZE);
+				gridPos.x_ = pixelPos.x_ / (info.tileWidth_ / PIXEL_SIZE);
+				goalPoint = SquareGrid::Location{ gridPos.x_, gridPos.y_ };
+			}
+			else if (obj->GetName() == "SpawnPoint")
+			{
+				Vector2 pixelPos = obj->GetPosition();
+				pixelPos.y_ = (info.GetMapHeight() - pixelPos.y_) - obj->GetSize().y_;
+				pixelPos /= PIXEL_SIZE;
+				Vector2 gridPos;
+				gridPos.y_ = pixelPos.y_ / (info.tileHeight_ / PIXEL_SIZE);
+				gridPos.x_ = pixelPos.x_ / (info.tileWidth_ / PIXEL_SIZE);
+				startPoint = SquareGrid::Location{ gridPos.x_, gridPos.y_ };
+			}
+		}
+
+	
+		auto parents = breadth_first_search(grid, startPoint, goalPoint);
+
+		vector<SquareGrid::Location> path = reconstruct_path(startPoint, goalPoint, parents);
+		Vector2 pos(std::get<0>(startPoint), std::get<1>(startPoint));
+
+		maptext->SetText(draw_grid_to_String(grid, 2, nullptr, nullptr, &path).c_str());
+	}
 
 }
 
@@ -224,3 +297,5 @@ void GameState::End()
 
 	State::End();
 }
+
+

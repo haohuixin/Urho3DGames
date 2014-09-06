@@ -2,15 +2,12 @@
 -------------------------------------------------
 
 Simple Snake :
-		Added Classes : ExpirationTimer
+		Features  : ExpirationTimer
 
 Simple Tower Defense :
-		Features : Creating a Application State Manager.
-		Added Classes : ExpirationTimer 
-				StateManager	
-				GameplayState
-				MainMenuState				
-				SplashState
+		Features :  	ExpirationTimer
+				Application State Manager.
+
 
 
 Urho3D - cross-platform rendering and game engine

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Created with http://www.leshylabs.com/apps/sstool/-->
+<TextureAtlas  imagePath="SimpleTD.png">
+  <SubTexture name="sprite4" x="0" y="0" width="16" height="16"/>
+  <SubTexture name="sprite5" x="16" y="0" width="16" height="16"/>
+  <SubTexture name="sprite6" x="32" y="0" width="16" height="16"/>
+  <SubTexture name="Enemy" x="0" y="16" width="16" height="16"/>
+  <SubTexture name="EnemyDown" x="16" y="16" width="16" height="16"/>
+  <SubTexture name="sprite9" x="64" y="16" width="16" height="16"/>
+  <SubTexture name="Tower" x="0" y="32" width="16" height="16"/>
+  <SubTexture name="Tower1" x="16" y="32" width="16" height="16"/>
+  <SubTexture name="Tower2" x="32" y="32" width="16" height="16"/>
+  <SubTexture name="Tower3" x="48" y="32" width="16" height="16"/>
+  <SubTexture name="Tower4" x="64" y="32" width="16" height="16"/>
+  <SubTexture name="Bullet" x="0" y="48" width="8" height="8"/>
+  <SubTexture name="Bullet1" x="8" y="48" width="8" height="8"/>
+  <SubTexture name="Bullet2" x="16" y="48" width="8" height="8"/>
+  <SubTexture name="Bullet3" x="24" y="48" width="8" height="8"/>
+</TextureAtlas>

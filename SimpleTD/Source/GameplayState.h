@@ -34,8 +34,11 @@
 #include "Text.h"
 
 
+
+
 // All Urho3D classes reside in namespace Urho3D
 using namespace Urho3D;
+
 
 //-----------------------------------------------------------------------------
 // State
@@ -74,7 +77,6 @@ private:
 	// Private Methods
 	//-------------------------------------------------------------------------
 	//////////////////////////////////////////////////////////////////////////
-	// create sample
 	/// Construct the scene content.
 	void CreateScene();
 	/// Construct an instruction text to the UI.
@@ -87,6 +89,8 @@ private:
 	void SubscribeToEvents();
 	/// Handle the logic update event.
 	void HandleUpdate(StringHash eventType, VariantMap& eventData);
+
+	
 
 	/// Scene.
 	SharedPtr<Scene> scene_;
