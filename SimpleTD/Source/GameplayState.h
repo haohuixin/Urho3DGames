@@ -91,9 +91,15 @@ private:
 	/// Handle the logic update event.
 	void HandleUpdate(StringHash eventType, VariantMap& eventData);
 
+	// Handle Gameplay
+	void ResetGame();
+	void GameOver();
+	void HandleQuitMessageAck(StringHash eventType, VariantMap& eventData);
+
 	// Enemy handling function
 	void HandleEnemyDied(StringHash eventType, VariantMap& eventData);
 	void SpawnEnemy();
+
 	// Wave Handling Function
 	void SpawnWave();
 
@@ -120,6 +126,8 @@ private:
 	int money_;
 	int lifes_;
 	SharedPtr<Text> playerInfo_;
+
+	bool gameOver_;
 
 protected:
 	//-------------------------------------------------------------------------

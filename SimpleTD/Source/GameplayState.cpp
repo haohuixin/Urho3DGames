@@ -60,11 +60,12 @@
 #include "StaticSprite2D.h"
 #include "SpriteSheet2D.h"
 #include "Enemy.h"
+#include "MessageBox.h"
 
 #define WAVE_SPAWN_INTERVAL 1.0f
 #define ENEMY_SPAWN_INTERVAL 0.85f
 #define ENEMY_SPEED 5.50f
-
+#define PLAYER_LIFE 5
 GameState::GameState(Context* context) : State(context),
 wave_(0),
 enemiesAlive_(0),
@@ -72,7 +73,8 @@ enemiesToSpawn_(0),
 waveTimer_(WAVE_SPAWN_INTERVAL),
 enemyTimer_(0.0f),
 money_(0),
-lifes_(10)
+lifes_(PLAYER_LIFE),
+gameOver_(false)
 {
 	Enemy::RegisterObject(context);
 }
@@ -91,6 +93,8 @@ bool GameState::Begin()
 	SetupViewport();
 	// Hook up to the frame update events
 	SubscribeToEvents();
+
+	ResetGame();
 
 	return State::Begin();
 }
@@ -313,6 +317,11 @@ void GameState::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	// Take the frame time step, which is stored as a float
 	float timeStep = eventData[P_TIMESTEP].GetFloat();
 
+	if (gameOver_)
+	{
+		return;
+	}
+
 	// Move the camera, scale movement with time step
 	MoveCamera(timeStep);
 
@@ -371,10 +380,6 @@ void GameState::HandleEnemyDied(StringHash eventType, VariantMap& eventData)
 
 	// spawn particles
 
-	// update enemies alive
-
-	// update wave
-
 	if (eventData[P_GAINMONEY].GetBool())
 	{
 		// update player money
@@ -382,8 +387,12 @@ void GameState::HandleEnemyDied(StringHash eventType, VariantMap& eventData)
 	}
 	else
 	{
-		lifes_--;
 		// update player life
+		lifes_--;	
+		if (lifes_ <= 0 && !gameOver_)
+		{
+			GameOver();
+		}
 	}
 
 	enemiesAlive_--;
@@ -438,4 +447,54 @@ void GameState::SpawnEnemy()
 	Enemy* e = enemySpriteNode_->CreateComponent<Enemy>();
 	e->FollowPath(&path_);
 	e->SetSpeed(ENEMY_SPEED);
+}
+
+void GameState::GameOver()
+{
+	gameOver_ = true;
+	SharedPtr<Urho3D::MessageBox> messageBox(new Urho3D::MessageBox(context_, "Restart Game ?", "Game Over ! :-/ "));
+
+	if (messageBox->GetWindow() != NULL)
+	{
+		Button* cancelButton = (Button*)messageBox->GetWindow()->GetChild("CancelButton", true);
+		cancelButton->SetVisible(true);
+		cancelButton->SetFocus(true);
+		SubscribeToEvent(messageBox, E_MESSAGEACK, HANDLER(GameState, HandleQuitMessageAck));
+	}
+	if (GetSubsystem<Input>())
+		GetSubsystem<Input>()->SetMouseVisible(true);
+	messageBox->AddRef();
+}
+
+void GameState::ResetGame()
+{
+	wave_ = 0;
+	enemiesAlive_=0;
+	enemiesToSpawn_=0;
+	waveTimer_=WAVE_SPAWN_INTERVAL;
+	enemyTimer_=0.0f;
+	money_=0;
+	lifes_ = PLAYER_LIFE;
+	gameOver_=false;
+
+	String str;
+	str.AppendWithFormat("Lifes %i Money %i", lifes_, money_);
+	playerInfo_->SetText(str);
+}
+
+void GameState::HandleQuitMessageAck(StringHash eventType, VariantMap& eventData)
+{
+	using namespace MessageACK;
+
+	bool ok_ = eventData[P_OK].GetBool();
+
+	if (GetSubsystem<Input>())
+		GetSubsystem<Input>()->SetMouseVisible(false);
+
+	if (ok_)
+		stateManager_->SetActiveState("GameState");
+	else
+		stateManager_->PopStack();
+
+
 }
