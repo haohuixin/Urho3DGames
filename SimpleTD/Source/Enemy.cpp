@@ -90,21 +90,16 @@ void Enemy::Hurt(float dmg)
 
 void Enemy::Explode(bool gainMoney)
 {
-	// play sound
-
-	// spawn particles 
-
-	// update enemies alive 
-
-	// update wave 
 
 	
-	if (gainMoney)
 	{
-		// update players money
+		using namespace EnemyDied;
 
+		VariantMap& eventData = GetEventDataMap();
+		eventData[P_GAINMONEY] = gainMoney;
+		SendEvent(E_ENEMYDIED, eventData);
 	}
-	
+
 	node_->Remove();
 }
 

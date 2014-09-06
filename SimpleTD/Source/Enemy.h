@@ -1,5 +1,14 @@
 #pragma once
 #include "LogicComponent.h"
+namespace Urho3D
+{
+
+	/// Enemy died  
+	EVENT(E_ENEMYDIED, EnemyDied)
+	{
+		PARAM(P_GAINMONEY, GainMoney);                // bool
+	}
+}
 
 // All Urho3D classes reside in namespace Urho3D
 using namespace Urho3D;

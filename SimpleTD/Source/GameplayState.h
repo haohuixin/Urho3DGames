@@ -37,8 +37,6 @@
 #include "TileMap2D.h"
 
 
-
-
 // All Urho3D classes reside in namespace Urho3D
 using namespace Urho3D;
 
@@ -82,8 +80,8 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	/// Construct the scene content.
 	void CreateScene();
-	/// Construct an instruction text to the UI.
-	void CreateInstructions();
+	/// Construct Game UI.
+	void CreateUI();
 	/// Set up a viewport for displaying the scene.
 	void SetupViewport();
 	/// Read input and moves the camera.
@@ -93,16 +91,35 @@ private:
 	/// Handle the logic update event.
 	void HandleUpdate(StringHash eventType, VariantMap& eventData);
 
-	
+	// Enemy handling function
+	void HandleEnemyDied(StringHash eventType, VariantMap& eventData);
+	void SpawnEnemy();
+	// Wave Handling Function
+	void SpawnWave();
+
 	SharedPtr<Scene> scene_;
+
 	SharedPtr<Node> cameraNode_;
 
+	// Tile Map 
 	SharedPtr<TileMap2D> tileMap_;
 
+	// Pathfinding
 	Vector<Vector2> path_;
 
+	// Wave
 	int wave_;
+	SharedPtr<Text> waveInfo_;
+	float waveTimer_;
+	SharedPtr<Text> enemyInfo_;
+	int enemiesAlive_;
+	int enemiesToSpawn_;
+	float enemyTimer_;
 
+	// Player
+	int money_;
+	int lifes_;
+	SharedPtr<Text> playerInfo_;
 
 protected:
 	//-------------------------------------------------------------------------
