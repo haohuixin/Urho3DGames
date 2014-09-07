@@ -97,6 +97,8 @@ void Enemy::Explode(bool gainMoney)
 
 		VariantMap& eventData = GetEventDataMap();
 		eventData[P_GAINMONEY] = gainMoney;
+		eventData[P_NODE] = node_;
+
 		SendEvent(E_ENEMYDIED, eventData);
 	}
 

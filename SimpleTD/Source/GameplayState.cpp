@@ -61,11 +61,13 @@
 #include "SpriteSheet2D.h"
 #include "Enemy.h"
 #include "MessageBox.h"
+#include "Tower.h"
+#include "Bullet.h"
 
-#define WAVE_SPAWN_INTERVAL 1.0f
-#define ENEMY_SPAWN_INTERVAL 0.85f
-#define ENEMY_SPEED 5.50f
-#define PLAYER_LIFE 5
+#define WAVE_SPAWN_INTERVAL 1.0f  // seconds
+#define ENEMY_SPAWN_INTERVAL 0.85f // seconds
+#define ENEMY_SPEED 3.50f
+#define PLAYER_LIFE 10
 GameState::GameState(Context* context) : State(context),
 wave_(0),
 enemiesAlive_(0),
@@ -77,6 +79,8 @@ lifes_(PLAYER_LIFE),
 gameOver_(false)
 {
 	Enemy::RegisterObject(context);
+	Bullet::RegisterObject(context);
+	Tower::RegisterObject(context);
 }
 
 GameState::~GameState()
@@ -170,7 +174,7 @@ void GameState::CreateScene()
 		// 		SquareGrid::Location goalPoint;
 		Vector2 startPoint;
 		Vector2 goalPoint;
-
+		TileMapObject2D* tower = NULL;
 		for (int i = 0; i < eventsLayer->GetNumObjects(); ++i)
 		{
 			TileMapObject2D* obj = eventsLayer->GetObject(i);
@@ -191,6 +195,25 @@ void GameState::CreateScene()
 				startPoint.y_ = pixelPos.y_ / (info.tileHeight_ / PIXEL_SIZE);
 				startPoint.x_ = pixelPos.x_ / (info.tileWidth_ / PIXEL_SIZE);
 				//startPoint = SquareGrid::Location{ gridPos.x_, gridPos.y_ };
+			}
+			else if (obj->GetName() == "Tower")
+			{
+				tower = eventsLayer->GetObject(i);
+				SharedPtr<Node> towerNode_(scene_->CreateChild("Tower"));
+				towerNode_->SetPosition2D(tower->GetPosition());
+				Tower* t = towerNode_->CreateComponent<Tower>();
+				t->SetEnemies(&enemies_);
+
+				ResourceCache* cache = GetSubsystem<ResourceCache>();
+				// create enemy
+				SpriteSheet2D* 	spriteSheet = cache->GetResource<SpriteSheet2D>("Tilemaps/TileMapSprites.xml");
+				if (!spriteSheet)
+					return;
+
+				StaticSprite2D* staticSprite = towerNode_->CreateComponent<StaticSprite2D>();
+				spriteSheet->GetSprite("Tower")->SetHotSpot(Vector2(0.0f, 0.0f));
+				staticSprite->SetSprite(spriteSheet->GetSprite("Tower"));
+				staticSprite->SetLayer(5 * 10);
 			}
 		}
 
@@ -216,6 +239,7 @@ void GameState::CreateScene()
 		}
 
 		waveInfo_->SetVisible(true);	
+
 	}
 }
 
@@ -383,7 +407,7 @@ void GameState::HandleEnemyDied(StringHash eventType, VariantMap& eventData)
 	if (eventData[P_GAINMONEY].GetBool())
 	{
 		// update player money
-		money_ += 10;
+		money_ += (wave_ < 5) ? 2 : 1;;
 	}
 	else
 	{
@@ -394,9 +418,11 @@ void GameState::HandleEnemyDied(StringHash eventType, VariantMap& eventData)
 			GameOver();
 		}
 	}
+	Node* n = (Node*)eventData[P_NODE].GetPtr();
+	enemies_.Remove(WeakPtr<Node>(n));
 
 	enemiesAlive_--;
-
+	
 	String str;
 	str.AppendWithFormat("Enemies alive %i ", enemiesAlive_);
 	enemyInfo_->SetText(str);
@@ -438,7 +464,7 @@ void GameState::SpawnEnemy()
 	SpriteSheet2D* 	spriteSheet = cache->GetResource<SpriteSheet2D>("Tilemaps/TileMapSprites.xml");
 	if (!spriteSheet)
 		return;
-	Node* enemySpriteNode_ = scene_->CreateChild("Enemy");
+	SharedPtr<Node> enemySpriteNode_ ( scene_->CreateChild("Enemy"));
 	StaticSprite2D* staticSprite = enemySpriteNode_->CreateComponent<StaticSprite2D>();
 	spriteSheet->GetSprite("Enemy")->SetHotSpot(Vector2(0.0f, 0.0f));
 	staticSprite->SetSprite(spriteSheet->GetSprite("Enemy"));
@@ -446,7 +472,11 @@ void GameState::SpawnEnemy()
 	/// create Enemy component which controls the Enemy behavior
 	Enemy* e = enemySpriteNode_->CreateComponent<Enemy>();
 	e->FollowPath(&path_);
-	e->SetSpeed(ENEMY_SPEED);
+	e->SetSpeed(ENEMY_SPEED+wave_*0.3f);
+	e->SetMaxHealth((wave_ / 3) + 1.0f);
+	e->SetHealth((wave_ / 3) + 1.0f);
+
+	enemies_.Push(WeakPtr<Node>(enemySpriteNode_));
 }
 
 void GameState::GameOver()

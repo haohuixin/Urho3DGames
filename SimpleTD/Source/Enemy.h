@@ -7,6 +7,7 @@ namespace Urho3D
 	EVENT(E_ENEMYDIED, EnemyDied)
 	{
 		PARAM(P_GAINMONEY, GainMoney);                // bool
+		PARAM(P_NODE, NodePtr);                // Node Ptr
 	}
 }
 

@@ -122,6 +122,8 @@ private:
 	int enemiesToSpawn_;
 	float enemyTimer_;
 
+	Vector<WeakPtr<Node>> enemies_;
+
 	// Player
 	int money_;
 	int lifes_;
