@@ -56,7 +56,9 @@ void Tower::Update(float timeStep)
 
 Node* Tower::GetNearestEnemy()
 {
-
+	if (enemies_!=NULL)
+	{
+	
 
 	for (int i = 0; i < enemies_->Size();i++)
 	{
@@ -71,7 +73,7 @@ Node* Tower::GetNearestEnemy()
 			
 		}
 	}
-
+	}
 	return NULL;
 }
 
@@ -96,7 +98,7 @@ void Tower::Shoot()
 	staticSprite->SetLayer(6 * 10);
 	/// create Enemy component which controls the Enemy behavior
 	Bullet* b = bulletNode_->CreateComponent<Bullet>();
-	b->SetTarget(target_);
+	b->SetTarget(WeakPtr<Node>(target_));
 	b->SetDamage(damage_);
 
 }
@@ -120,4 +122,21 @@ void Tower::UpgradeFirerate()
 	fireRate_ += 0.5;
 	firerateLevel_++;
 	fireratePrize_ =(int) fireratePrize_ * COST_INCREASE;
+}
+
+int Tower::GetPrize(StringHash type)
+{
+	if (type == "Range")
+	{
+		return rangePrize_;
+	}else
+	if (type == "Damage")
+	{
+		return damagePrize_;
+	}else
+	if (type == "FireRate")
+	{
+		return fireratePrize_;
+	}
+	return 0;
 }

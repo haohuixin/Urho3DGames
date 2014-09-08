@@ -35,6 +35,11 @@
 #include "Vector.h"
 #include "ExpirationTimer.h"
 #include "TileMap2D.h"
+#include "Button.h"
+#include "Drawable.h"
+#include "Plane.h"
+#include "Pair.h"
+#include "Tower.h"
 
 
 // All Urho3D classes reside in namespace Urho3D
@@ -80,12 +85,10 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	/// Construct the scene content.
 	void CreateScene();
-	/// Construct Game UI.
+	/// Construct UI.
 	void CreateUI();
 	/// Set up a viewport for displaying the scene.
 	void SetupViewport();
-	/// Read input and moves the camera.
-	void MoveCamera(float timeStep);
 	/// Subscribe to application-wide logic update events.
 	void SubscribeToEvents();
 	/// Handle the logic update event.
@@ -96,11 +99,28 @@ private:
 	void GameOver();
 	void HandleQuitMessageAck(StringHash eventType, VariantMap& eventData);
 
-	// Enemy handling function
+	// Handle Menus
+	void SetBuyMenu(bool visible);
+	void SetUpgradeMenu(bool visible);
+
+	void HandleBuyPressed(StringHash eventType, VariantMap& eventData);
+	void HandleBackPressed(StringHash eventType, VariantMap& eventData);
+	void HandleSellPressed(StringHash eventType, VariantMap& eventData);
+	void HandleUpgradePressed(StringHash eventType, VariantMap& eventData);
+	void HandleCancelPressed(StringHash eventType, VariantMap& eventData);
+	void HandleMouseButtonUpPressed(StringHash eventType, VariantMap& eventData);
+
+	void PlaceTower();
+	bool Raycast(float maxDistance, Vector3& hitPos, Drawable*& hitDrawable);
+	bool RaycastWithPlane(Vector3& hitPos);
+	void ClickedOnTower();
+	void UpdateUpgradeLabels();
+
+	// Enemy handling functions
 	void HandleEnemyDied(StringHash eventType, VariantMap& eventData);
 	void SpawnEnemy();
 
-	// Wave Handling Function
+	// Wave Handling functions
 	void SpawnWave();
 
 	SharedPtr<Scene> scene_;
@@ -123,7 +143,8 @@ private:
 	float enemyTimer_;
 
 	Vector<WeakPtr<Node>> enemies_;
-
+	HashMap<Pair<int,int>,WeakPtr<Node>> towers_;
+	WeakPtr<Tower> selectedTower_;
 	// Player
 	int money_;
 	int lifes_;
@@ -131,6 +152,22 @@ private:
 
 	bool gameOver_;
 
+	// Menu UI
+	SharedPtr<UIElement> menuBar_;
+	SharedPtr<Button> buyTowerButton_;
+	SharedPtr<Button> canelButton_;
+	SharedPtr<Text> buytowerText_;
+	SharedPtr<Text> sellText_;
+	SharedPtr<Text> uRangeText_;
+	SharedPtr<Text> uDmgText_;
+	SharedPtr<Text> uFireRateText_;
+
+	int towerPrice_ =8;
+	bool buildingMode_ = false;
+
+	bool upgradeMode_ = false;
+	SharedPtr<Node> tempTowerNode_;
+	Plane plane_;
 protected:
 	//-------------------------------------------------------------------------
 	// Protected Variables

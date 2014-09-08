@@ -39,6 +39,7 @@ public:
 
 	void  UpgradeFirerate();
 
+	int GetPrize(StringHash type);
 protected:
 
 	Vector<WeakPtr<Node>> *enemies_ = NULL;

@@ -35,15 +35,15 @@ public:
 
 
 	void SetDamage(int dmg) { damage_ = dmg; }
-	void SetTarget(Node* tar) { target_ = tar; }
+	void SetTarget(WeakPtr<Node> tar) { target_ = tar; }
 	void SetSpeed(float speed) { speed_ = speed; }
 	void SetDuration(float d) { duration_ = d; }
 
 protected:
 	float speed_ = 1.0f;
 	int damage_ = 1;
-	Node* target_= NULL;
-	float duration_ = 3.0f;
+	WeakPtr<Node> target_;
+	float duration_ = 1.30f;
 private:
 
 	

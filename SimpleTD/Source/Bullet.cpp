@@ -32,7 +32,7 @@ void Bullet::Stop()
 
 void Bullet::Update(float timeStep)
 {
-	if (target_ != NULL)
+	if (!target_.Expired())
 	{
 		// follow target
 		Vector2 pos = target_->GetPosition2D() - node_->GetPosition2D();
